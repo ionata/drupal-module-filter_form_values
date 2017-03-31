@@ -1,0 +1,91 @@
+<?php
+
+/**
+ * @file
+ * Contains filter_form_values.module.
+ */
+
+use Drupal\Core\Field\FieldConfigInterface;
+use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Routing\RouteMatchInterface;
+
+/**
+ * Implements hook_help().
+ */
+function filter_form_values_help($route_name, RouteMatchInterface $route_match) {
+  switch ($route_name) {
+    // Main module help for the filter_form_values module.
+    case 'help.page.filter_form_values':
+      $output = '';
+      $output .= '<h3>' . t('About') . '</h3>';
+      $output .= '<p>' . t('Developer module to add in filtering of form state values before submit handlers.') . '</p>';
+      return $output;
+
+    default:
+  }
+}
+
+/**
+ * Implements hook_form_alter().
+ */
+function filter_form_values_form_alter(&$form, FormStateInterface $form_state, $form_id) {
+  if (isset($form['#entity_builders'])) {
+    array_unshift($form['actions']['submit']['#submit'], 'filter_form_values_presubmit');
+  }
+}
+
+/**
+ * Filter the form values before they go to submitForm / save.
+ */
+function filter_form_values_presubmit(&$form, FormStateInterface $form_state) {
+  // Get a list of modules that should apply.
+  $module_handler = \Drupal::moduleHandler();
+
+  $filter_functions = $module_handler->invokeAll('filter_form_values_filter_functions', [$form, $form_state]);
+
+  if (count($filter_functions) > 0) {
+    $form_state_values = $form_state->getValues();
+
+    $form_display = $form_state->getStorage()['form_display'];
+    $bundle = $form_display->getTargetBundle();
+    $entity_type_id = $form_display->getTargetEntityTypeId();
+    $entity = $form_state->getFormObject()->getEntity();
+
+    // @todo change to entity type manager.
+    $entity_manager = \Drupal::entityManager();
+    $field_definitions = $entity_manager->getFieldDefinitions($entity_type_id, $bundle);
+
+    $field_definitions = array_filter($field_definitions, function ($field_definition) {
+      return $field_definition instanceof FieldConfigInterface;
+    });
+
+    uasort($field_definitions, ['\Drupal\Core\Config\Entity\ConfigEntityBase', 'sort']);
+
+    $dirty_fields = [];
+    foreach ($field_definitions as $field_name => $field_definition) {
+      if (is_array($form_state_values) && array_key_exists($field_name, $form_state_values)) {
+        $clean_value = FALSE;
+        foreach ($filter_functions as $function_name) {
+          $function_filtered = call_user_func_array($function_name, [
+            $form, $form_display, $form_state_values, $entity, $field_name, $field_definition,
+          ]);
+
+          $clean_value = $clean_value || $function_filtered;
+        }
+
+        if ($clean_value) {
+          $dirty_fields[] = $field_name;
+        }
+      }
+    }
+
+    if (count($dirty_fields) > 0) {
+      foreach ($dirty_fields as $field_name) {
+        if ($field_name != 'field_state') {
+          $form[$field_name]['#access'] = FALSE;
+          $form_state->unsetValue($field_name);
+        }
+      }
+    }
+  }
+}
