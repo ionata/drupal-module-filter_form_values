@@ -9,7 +9,6 @@ use Drupal\Core\Field\FieldConfigInterface;
 use Drupal\Core\Form\FormState;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Routing\RouteMatchInterface;
-use Drupal\eform\Entity\EFormSubmission;
 
 /**
  * Implements hook_help().
@@ -52,7 +51,6 @@ function filter_form_values_presubmit(&$form, FormStateInterface $form_state) {
     $bundle = $form_display->getTargetBundle();
     $entity_type_id = $form_display->getTargetEntityTypeId();
     $entity = $form_state->getFormObject()->getEntity();
-    $eform_submission = EFormSubmission::load(1);
 
     if ($entity->isNew()) {
       return;
@@ -91,7 +89,7 @@ function filter_form_values_presubmit(&$form, FormStateInterface $form_state) {
       // Caveat being that not array wrapped.
       $entity_type_manager = \Drupal::entityTypeManager();
       $original_form_object = $entity_type_manager->getFormObject($entity->getEntityTypeId(), $form_display->getMode());
-      $original_form_object->setEntity($eform_submission);
+      $original_form_object->setEntity($entity);
       $original_form_state = new FormState();
       $original_form = \Drupal::formBuilder()->buildForm($original_form_object, $original_form_state);
       $original_form_state_values = $original_form_state->getValues();
