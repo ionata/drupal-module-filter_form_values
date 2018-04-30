@@ -34,7 +34,7 @@ function filter_form_values_form_alter(&$form, FormStateInterface $form_state, $
     array_unshift($form['actions']['submit']['#submit'], 'filter_form_values_presubmit');
   }
   $entity_draft_module = \Drupal::service('module_handler')->moduleExists('entity_draft');
-  if ($entity_draft_module) {
+  if ($entity_draft_module && isset($form['actions']['draft']['#submit'])) {
     array_unshift($form['actions']['draft']['#submit'], 'filter_form_values_presubmit');
   }
 }
