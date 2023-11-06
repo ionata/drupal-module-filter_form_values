@@ -3,4 +3,4 @@ type: module
 description: Developer module to add in filtering of form state values before submit handlers.
 # core: 8.x
 package: Custom
-core_version_requirement: ^8.8 || ^9
+core_version_requirement: ^8.8 || ^9 || ^10
